@@ -16,11 +16,6 @@ console.log('Project ID:', process.env.GOOGLE_CLOUD_PROJECT_ID);
 console.log('Location:', process.env.GOOGLE_CLOUD_LOCATION);
 console.log('Processor ID:', process.env.DOCUMENT_AI_PROCESSOR_ID);
 console.log('Bucket Name:', process.env.GOOGLE_CLOUD_BUCKET_NAME);
-console.log('Credentials Path:', process.env.GOOGLE_APPLICATION_CREDENTIALS);
-
-// Verify credentials file exists
-const credentialsPath = path.resolve(process.env.GOOGLE_APPLICATION_CREDENTIALS);
-console.log('Absolute credentials path:', credentialsPath);
 
 // Update CORS configuration
 app.use(cors({
@@ -38,13 +33,19 @@ app.use((err, req, res, next) => {
 // Initialize Google Cloud clients with explicit configuration
 const documentProcessorClient = new DocumentProcessorServiceClient({
   apiEndpoint: 'us-documentai.googleapis.com',
-  keyFilename: credentialsPath,
+  credentials: {
+    client_email: process.env.GOOGLE_CLOUD_CLIENT_EMAIL,
+    private_key: process.env.GOOGLE_CLOUD_PRIVATE_KEY,
+  },
   projectId: process.env.GOOGLE_CLOUD_PROJECT_ID
 });
 
 const storage = new Storage({
   projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
-  keyFilename: credentialsPath,
+  credentials: {
+    client_email: process.env.GOOGLE_CLOUD_CLIENT_EMAIL,
+    private_key: process.env.GOOGLE_CLOUD_PRIVATE_KEY,
+  },
   autoRetry: true,
   maxRetries: 3
 });
