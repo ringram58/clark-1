@@ -2,7 +2,6 @@ import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDropzone } from 'react-dropzone';
 import { supabase } from '../lib/supabase';
-import Header from './Header';
 
 const BatchUpload = () => {
   const navigate = useNavigate();
@@ -385,7 +384,6 @@ const BatchUpload = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header />
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="bg-white shadow rounded-lg">
           <div className="px-4 py-5 sm:p-6">

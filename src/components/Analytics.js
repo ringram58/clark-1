@@ -14,7 +14,6 @@ import {
   Pie,
   Cell
 } from 'recharts';
-import Header from './Header';
 
 const Analytics = () => {
   const navigate = useNavigate();
@@ -88,7 +87,6 @@ const Analytics = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100">
-        <Header />
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
         </div>
@@ -99,7 +97,6 @@ const Analytics = () => {
   if (error) {
     return (
       <div className="min-h-screen bg-gray-100">
-        <Header />
         <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <p className="text-red-600">{error}</p>
@@ -111,7 +108,6 @@ const Analytics = () => {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <Header />
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         {/* KPIs */}
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-6">

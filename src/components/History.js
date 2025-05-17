@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import Header from './Header';
 
 const History = () => {
   const navigate = useNavigate();
@@ -178,7 +177,6 @@ const History = () => {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <Header />
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
           <div className="bg-white rounded-lg shadow">
