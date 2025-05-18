@@ -6,7 +6,7 @@ const Header = () => {
 
   return (
     <header className="bg-white shadow">
-      <div className="px-2 py-2">
+      <div className="px-8 py-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
             <button
@@ -19,21 +19,7 @@ const Header = () => {
               Intelligent Document Processing
             </p>
           </div>
-          <div className="flex items-center space-x-1">
-            <button
-              onClick={() => navigate('/')}
-              className="p-1 text-gray-600 hover:text-blue-600 transition-colors"
-              title="Home"
-            >
-              🏠 Home
-            </button>
-            <button
-              onClick={() => navigate('/settings')}
-              className="p-1 text-gray-600 hover:text-blue-600 transition-colors"
-              title="Settings"
-            >
-              ⚙️ Settings
-            </button>
+          <div className="flex items-center">
             <div className="relative group">
               <div className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-semibold cursor-pointer">
                 RI
