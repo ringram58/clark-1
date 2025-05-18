@@ -8,13 +8,14 @@ import Header from './Header';
 // Initialize PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
-const Review = () => {
+const Review = ({ selectedInvoiceId }) => {
   const [invoices, setInvoices] = useState([]);
   const [filteredInvoices, setFilteredInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showGallery, setShowGallery] = useState(true);
   const navigate = useNavigate();
+  const [highlightedInvoiceId, setHighlightedInvoiceId] = useState(selectedInvoiceId);
   
   // Filter state
   const [filters, setFilters] = useState({
@@ -52,6 +53,20 @@ const Review = () => {
   const [editedValues, setEditedValues] = useState({});
   const [validationErrors, setValidationErrors] = useState({});
   const [submissionStatus, setSubmissionStatus] = useState(null);
+
+  // Update highlighted invoice when selectedInvoiceId changes
+  useEffect(() => {
+    if (selectedInvoiceId) {
+      setHighlightedInvoiceId(selectedInvoiceId);
+      // Scroll to the highlighted row after a short delay to ensure the table is rendered
+      setTimeout(() => {
+        const element = document.getElementById(`invoice-row-${selectedInvoiceId}`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
+    }
+  }, [selectedInvoiceId]);
 
   const fetchUnreviewedInvoices = async () => {
     try {
@@ -1530,9 +1545,11 @@ const Review = () => {
                             <tbody className="bg-white divide-y divide-gray-200">
                               {paginatedInvoices.map((invoice) => (
                                 <tr 
-                                  key={invoice.id} 
-                                  className={`hover:bg-gray-50 cursor-pointer ${selectedInvoice?.id === invoice.id ? 'bg-blue-50' : ''}`}
-                                  onClick={() => handleInvoiceSelect(invoice)}
+                                  key={invoice.id}
+                                  id={`invoice-row-${invoice.id}`}
+                                  className={`hover:bg-gray-50 ${
+                                    highlightedInvoiceId === invoice.id ? 'bg-blue-50' : ''
+                                  }`}
                                 >
                                   <td className="px-4 py-2 whitespace-nowrap text-xs font-medium text-gray-900">
                                     {invoice.invoice_number}

@@ -2,13 +2,35 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
-const History = () => {
+const History = ({ initialTab, selectedInvoiceId }) => {
   const navigate = useNavigate();
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedInvoices, setSelectedInvoices] = useState(new Set());
-  const [activeTab, setActiveTab] = useState('unexported');
+  const [activeTab, setActiveTab] = useState(initialTab || 'unexported');
+  const [highlightedInvoiceId, setHighlightedInvoiceId] = useState(selectedInvoiceId);
+
+  // Update activeTab when initialTab changes
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
+
+  // Update highlighted invoice when selectedInvoiceId changes
+  useEffect(() => {
+    if (selectedInvoiceId) {
+      setHighlightedInvoiceId(selectedInvoiceId);
+      // Scroll to the highlighted row after a short delay to ensure the table is rendered
+      setTimeout(() => {
+        const element = document.getElementById(`invoice-row-${selectedInvoiceId}`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
+    }
+  }, [selectedInvoiceId]);
 
   const fetchVerifiedInvoices = async () => {
     try {
@@ -264,7 +286,13 @@ const History = () => {
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
                         {filteredInvoices.map((invoice) => (
-                          <tr key={invoice.id} className="hover:bg-gray-50">
+                          <tr 
+                            key={invoice.id} 
+                            id={`invoice-row-${invoice.id}`}
+                            className={`hover:bg-gray-50 ${
+                              highlightedInvoiceId === invoice.id ? 'bg-blue-50' : ''
+                            }`}
+                          >
                             <td className="px-4 py-2 whitespace-nowrap">
                               <input
                                 type="checkbox"
