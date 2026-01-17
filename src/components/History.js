@@ -166,6 +166,34 @@ const History = () => {
     }
   };
 
+  const handleDownloadScan = async (invoice) => {
+    try {
+      if (!invoice.document_url) {
+        setError('No document URL found for this invoice.');
+        return;
+      }
+
+      // Get the signed URL for the document
+      const { data: signedUrl, error: signedUrlError } = await supabase
+        .storage
+        .from('invoices')
+        .createSignedUrl(invoice.document_url, 60); // URL valid for 60 seconds
+
+      if (signedUrlError) throw signedUrlError;
+
+      // Create a temporary link and trigger download
+      const link = document.createElement('a');
+      link.href = signedUrl.signedUrl;
+      link.download = `invoice_${invoice.invoice_number || invoice.id}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error('Error downloading invoice scan:', err);
+      setError('Failed to download invoice scan. Please try again.');
+    }
+  };
+
   useEffect(() => {
     fetchVerifiedInvoices();
   }, []);
@@ -260,6 +288,7 @@ const History = () => {
                           <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Processed Date</th>
                           <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
                           <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Confidence</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
@@ -297,6 +326,17 @@ const History = () => {
                               }`}>
                                 {(invoice.confidence_score * 100).toFixed(1)}%
                               </span>
+                            </td>
+                            <td className="px-4 py-2 whitespace-nowrap text-xs text-gray-500">
+                              <button
+                                onClick={() => handleDownloadScan(invoice)}
+                                className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                              >
+                                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                                Download Scan
+                              </button>
                             </td>
                           </tr>
                         ))}

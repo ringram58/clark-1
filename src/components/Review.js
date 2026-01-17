@@ -14,6 +14,7 @@ const Review = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showGallery, setShowGallery] = useState(true);
+  const [showVendorModal, setShowVendorModal] = useState(false);
   const navigate = useNavigate();
   
   // Filter state
@@ -297,13 +298,13 @@ const Review = () => {
       case 'invoice-date-desc':
         return 'Invoice Date (New to Old)';
       case 'amount-asc':
-        return 'Amount (Low to High)';
+        return 'Amount (Lowest to Highest)';
       case 'amount-desc':
-        return 'Amount (High to Low)';
+        return 'Amount (Highest to Lowest)';
       case 'upload-date-asc':
-        return 'Upload Date (Old to New)';
+        return 'Upload Date (Oldest to Newest)';
       case 'upload-date-desc':
-        return 'Upload Date (New to Old)';
+        return 'Upload Date (Newest to Oldest)';
       default:
         return 'Sort';
     }
@@ -919,37 +920,58 @@ const Review = () => {
   };
 
   // Function to render a field item
-  const renderFieldItem = (entity) => (
-    <div 
-      className={`flex justify-between items-start cursor-pointer p-2 rounded-md transition-colors
-        ${highlightedEntity?.id === entity.id ? 'bg-blue-50' : 'hover:bg-gray-50'}
-        ${validationErrors[entity.id] ? 'border border-red-500 bg-red-50' : ''}`}
-      onClick={() => handleFieldClick(entity)}
-    >
-      <div className="flex-1">
-        <p className="text-sm font-medium text-gray-900">
-          {formatFieldType(entity.type)}
-        </p>
-        <input
-          type="text"
-          value={editedValues[entity.id] ?? entity.mentionText}
-          onChange={(e) => handleFieldChange(entity.id, e.target.value)}
-          onClick={(e) => e.stopPropagation()} // Prevent field click when editing
-          className={`text-sm text-gray-600 mt-1 w-full p-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
-            ${validationErrors[entity.id] ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
-          placeholder={entity.mentionText}
-        />
-        {validationErrors[entity.id] && (
-          <p className="text-xs text-red-500 mt-1">{validationErrors[entity.id]}</p>
-        )}
+  const renderFieldItem = (entity) => {
+    // Check for HAPPIEST VALLEY FARMS if this is the supplier name field
+    const isSupplierName = entity.type === 'supplier_name';
+    const supplierName = editedValues[entity.id] || entity.mentionText || '';
+    const isUnknownVendor = isSupplierName && supplierName.toUpperCase() === 'HAPPIEST VALLEY FARMS';
+
+    return (
+      <div 
+        className={`flex justify-between items-start cursor-pointer p-2 rounded-md transition-colors
+          ${highlightedEntity?.id === entity.id ? 'bg-blue-50' : 'hover:bg-gray-50'}
+          ${validationErrors[entity.id] ? 'border border-red-500 bg-red-50' : ''}`}
+        onClick={() => handleFieldClick(entity)}
+      >
+        <div className="flex-1">
+          <p className="text-sm font-medium text-gray-900">
+            {formatFieldType(entity.type)}
+          </p>
+          <input
+            type="text"
+            value={editedValues[entity.id] ?? entity.mentionText}
+            onChange={(e) => handleFieldChange(entity.id, e.target.value)}
+            onClick={(e) => e.stopPropagation()} // Prevent field click when editing
+            className={`text-sm text-gray-600 mt-1 w-full p-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
+              ${validationErrors[entity.id] ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
+            placeholder={entity.mentionText}
+          />
+          {validationErrors[entity.id] && (
+            <p className="text-xs text-red-500 mt-1">{validationErrors[entity.id]}</p>
+          )}
+          {isUnknownVendor && (
+            <div className="mt-2 p-2 bg-yellow-50 text-yellow-700 rounded-md text-sm">
+              <p className="font-medium">Vendor not found in existing database.</p>
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowVendorModal(true);
+                }}
+                className="mt-1 text-blue-600 hover:text-blue-800 underline"
+              >
+                Add Vendor
+              </button>
+            </div>
+          )}
+        </div>
+        <div className="flex items-center ml-4">
+          <span className={`text-xs font-medium ${editedValues[entity.id] ? 'text-blue-500' : 'text-gray-500'}`}>
+            {editedValues[entity.id] ? 'Edited' : formatConfidence(entity.confidence)}
+          </span>
+        </div>
       </div>
-      <div className="flex items-center ml-4">
-        <span className={`text-xs font-medium ${editedValues[entity.id] ? 'text-blue-500' : 'text-gray-500'}`}>
-          {editedValues[entity.id] ? 'Edited' : formatConfidence(entity.confidence)}
-        </span>
-      </div>
-    </div>
-  );
+    );
+  };
 
   // Function to render a section
   const renderSection = (title, entities) => {
@@ -1269,6 +1291,34 @@ const Review = () => {
     fetchUnreviewedInvoices();
   }, []);
 
+  const handleDownloadScan = async (invoice) => {
+    try {
+      if (!invoice.document_url) {
+        setError('No document URL found for this invoice.');
+        return;
+      }
+
+      // Get the signed URL for the document
+      const { data: signedUrl, error: signedUrlError } = await supabase
+        .storage
+        .from('invoices')
+        .createSignedUrl(invoice.document_url, 60); // URL valid for 60 seconds
+
+      if (signedUrlError) throw signedUrlError;
+
+      // Create a temporary link and trigger download
+      const link = document.createElement('a');
+      link.href = signedUrl.signedUrl;
+      link.download = `invoice_${invoice.invoice_number || invoice.id}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error('Error downloading invoice scan:', err);
+      setError('Failed to download invoice scan. Please try again.');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-100">
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
@@ -1561,25 +1611,16 @@ const Review = () => {
                                   <td className="px-4 py-2 whitespace-nowrap text-xs text-gray-500">
                                     <div className="flex space-x-2">
                                       <button
-                                        className="text-blue-600 hover:text-blue-900"
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          const documentUrl = getDocumentUrl(invoice.document_url);
-                                          if (documentUrl) {
-                                            setSelectedDocument(documentUrl);
-                                          }
+                                          handleDownloadScan(invoice);
                                         }}
+                                        className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
                                       >
-                                        Review
-                                      </button>
-                                      <button
-                                        className="text-purple-600 hover:text-purple-900"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          displayRawData(invoice);
-                                        }}
-                                      >
-                                        Raw Data
+                                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                        </svg>
+                                        Download Scan
                                       </button>
                                     </div>
                                   </td>
@@ -1703,12 +1744,6 @@ const Review = () => {
                         >
                           Debug
                         </button>
-                        <button
-                          onClick={() => verifyInvoice(selectedInvoice)}
-                          className="px-3 py-1 text-sm text-white bg-green-500 hover:bg-green-600 rounded-md transition-colors"
-                        >
-                          Verify
-                        </button>
                       </div>
                     </div>
                   </div>
@@ -1812,38 +1847,89 @@ const Review = () => {
                                 </div>
                               )}
                               
-                              {submissionStatus === 'submitting' && (
-                                <div className="mb-4 p-3 bg-blue-50 text-blue-600 rounded-md text-sm">
-                                  Verifying invoice...
-                                </div>
-                              )}
-                              
-                              {submissionStatus === 'success' && (
-                                <div className="mb-4 p-3 bg-green-50 text-green-600 rounded-md text-sm">
-                                  Invoice verified successfully!
-                                </div>
-                              )}
-                              
-                              {submissionStatus === 'complete' && (
-                                <div className="mb-4 p-3 bg-green-50 text-green-600 rounded-md text-sm">
-                                  All queued invoices have been processed!
-                                </div>
-                              )}
-                              
-                              {submissionStatus === 'error' && (
-                                <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-md text-sm">
-                                  Error verifying invoice. Please try again.
-                                </div>
-                              )}
-                              
-                              {pdfCurrentPage === numPages && !submissionStatus && (
-                                <button
-                                  onClick={() => verifyInvoice(selectedInvoice)}
-                                  className="w-full px-4 py-2 text-sm text-white bg-green-500 hover:bg-green-600 rounded-md transition-colors"
-                                >
-                                  Verify Invoice
-                                </button>
-                              )}
+                              {(() => {
+                                // Get all totals from all pages
+                                const allPages = Object.keys(organizedByPage).map(Number).sort((a, b) => a - b);
+                                const allTotals = [];
+                                allPages.forEach(pageNum => {
+                                  const pageTotals = organizedByPage[pageNum]?.totals || [];
+                                  allTotals.push(...pageTotals);
+                                });
+
+                                // Find the specific amount entities
+                                const netAmountEntity = allTotals.find(e => e.type.toLowerCase().includes('net_amount'));
+                                const taxAmountEntity = allTotals.find(e => e.type.toLowerCase().includes('total_tax_amount'));
+                                const totalAmountEntity = allTotals.find(e => e.type.toLowerCase().includes('total_amount'));
+
+                                // Calculate total from net amount and tax
+                                const netAmount = parseFloat(editedValues[netAmountEntity?.id] || netAmountEntity?.mentionText || 0);
+                                const taxAmount = parseFloat(editedValues[taxAmountEntity?.id] || taxAmountEntity?.mentionText || 0);
+                                const totalAmount = parseFloat(editedValues[totalAmountEntity?.id] || totalAmountEntity?.mentionText || 0);
+                                const calculatedTotal = netAmount + taxAmount;
+                                
+                                // Check if amounts match (with small tolerance for floating point)
+                                const amountMismatch = Math.abs(calculatedTotal - totalAmount) > 0.01;
+
+                                // Check for HAPPIEST VALLEY FARMS
+                                const supplierName = editedValues[organizedByPage[1]?.supplier.find(e => e.type === 'supplier_name')?.id] || 
+                                                  organizedByPage[1]?.supplier.find(e => e.type === 'supplier_name')?.mentionText || '';
+                                const isUnknownVendor = supplierName.toUpperCase() === 'HAPPIEST VALLEY FARMS';
+                                
+                                return (
+                                  <>
+                                    {amountMismatch && (
+                                      <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-md text-sm">
+                                        <p className="font-medium">Amount Mismatch Detected:</p>
+                                        <p>Net Amount: ${netAmount.toFixed(2)}</p>
+                                        <p>Tax Amount: ${taxAmount.toFixed(2)}</p>
+                                        <p>Calculated Total: ${calculatedTotal.toFixed(2)}</p>
+                                        <p>Invoice Total: ${totalAmount.toFixed(2)}</p>
+                                        <p className="mt-2">Please verify the amounts before proceeding.</p>
+                                      </div>
+                                    )}
+                                    
+                                    {submissionStatus === 'submitting' && (
+                                      <div className="mb-4 p-3 bg-blue-50 text-blue-600 rounded-md text-sm">
+                                        Verifying invoice...
+                                      </div>
+                                    )}
+                                    
+                                    {submissionStatus === 'success' && (
+                                      <div className="mb-4 p-3 bg-green-50 text-green-600 rounded-md text-sm">
+                                        Invoice verified successfully!
+                                      </div>
+                                    )}
+                                    
+                                    {submissionStatus === 'complete' && (
+                                      <div className="mb-4 p-3 bg-green-50 text-green-600 rounded-md text-sm">
+                                        All queued invoices have been processed!
+                                      </div>
+                                    )}
+                                    
+                                    {submissionStatus === 'error' && (
+                                      <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-md text-sm">
+                                        Error verifying invoice. Please try again.
+                                      </div>
+                                    )}
+                                    
+                                    {pdfCurrentPage === numPages && !submissionStatus && (
+                                      <button
+                                        onClick={() => verifyInvoice(selectedInvoice)}
+                                        disabled={amountMismatch || isUnknownVendor}
+                                        className={`w-full px-4 py-2 text-sm text-white rounded-md transition-colors ${
+                                          (amountMismatch || isUnknownVendor)
+                                            ? 'bg-gray-400 cursor-not-allowed' 
+                                            : 'bg-green-500 hover:bg-green-600'
+                                        }`}
+                                      >
+                                        {amountMismatch ? 'Amounts Do Not Match' : 
+                                         isUnknownVendor ? 'Unknown Vendor' : 
+                                         'Verify Invoice'}
+                                      </button>
+                                    )}
+                                  </>
+                                );
+                              })()}
                             </div>
                           </>
                         );
@@ -1867,6 +1953,98 @@ const Review = () => {
           documentUrl={selectedDocument}
           onClose={() => setSelectedDocument(null)}
         />
+      )}
+
+      {/* Vendor Modal */}
+      {showVendorModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 transition-opacity" aria-hidden="true">
+              <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
+            </div>
+
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div className="sm:flex sm:items-start">
+                  <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
+                    <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
+                      Add New Vendor
+                    </h3>
+                    <div className="mt-2 space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Vendor Name</label>
+                        <input
+                          type="text"
+                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                          placeholder="Enter vendor name"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Contact Person</label>
+                        <input
+                          type="text"
+                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                          placeholder="Enter contact person name"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Email</label>
+                        <input
+                          type="email"
+                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                          placeholder="Enter email address"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Phone</label>
+                        <input
+                          type="tel"
+                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                          placeholder="Enter phone number"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Address</label>
+                        <textarea
+                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                          rows="3"
+                          placeholder="Enter vendor address"
+                        ></textarea>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Tax ID</label>
+                        <input
+                          type="text"
+                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                          placeholder="Enter tax ID"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button
+                  type="button"
+                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
+                  onClick={() => {
+                    setShowVendorModal(false);
+                    alert('Vendor would be created here');
+                  }}
+                >
+                  Create Vendor
+                </button>
+                <button
+                  type="button"
+                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                  onClick={() => setShowVendorModal(false)}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
